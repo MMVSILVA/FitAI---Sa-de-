@@ -139,12 +139,23 @@ export default function Dashboard() {
     // --- TAB 1: DASHBOARD ---
     const wsDash = wb.addWorksheet('Dashboard', { views: [{ showGridLines: false }] });
 
+    // Set column widths for a grid layout
+    wsDash.getColumn('A').width = 2;   // Spacer
+    wsDash.getColumn('B').width = 30;  // Col 1
+    wsDash.getColumn('C').width = 15;  // Col 2
+    wsDash.getColumn('D').width = 2;   // Spacer
+    wsDash.getColumn('E').width = 30;  // Col 3
+    wsDash.getColumn('F').width = 15;  // Col 4
+    wsDash.getColumn('G').width = 2;   // Spacer
+    wsDash.getColumn('H').width = 30;  // Col 5
+    wsDash.getColumn('I').width = 15;  // Col 6
+
     // Title
-    wsDash.mergeCells('A1:E2');
-    const titleCell = wsDash.getCell('A1');
-    titleCell.value = 'DASHBOARD GERAL DE PROJETOS - FIRJAN SENAI';
-    titleCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0055A4' } }; // Firjan Blue
+    wsDash.mergeCells('B2:I3');
+    const titleCell = wsDash.getCell('B2');
+    titleCell.value = 'ANÁLISE DE PROJETOS - DASHBOARD GERAL';
+    titleCell.font = { size: 20, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF002050' } }; // Power BI Dark Blue
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Metrics
@@ -152,76 +163,155 @@ export default function Dashboard() {
     const approvedProfessor = allProjects.filter(p => p.approvalProfessor).length;
     const approvedBiblioteca = allProjects.filter(p => p.approvalBiblioteca).length;
 
-    wsDash.getCell('A4').value = 'MÉTRICAS GERAIS';
-    wsDash.getCell('A4').font = { size: 12, bold: true };
+    const createKPICard = (startCol: string, endCol: string, row: number, title: string, value: string | number, subtitle: string) => {
+      wsDash.mergeCells(`${startCol}${row}:${endCol}${row}`);
+      wsDash.mergeCells(`${startCol}${row+1}:${endCol}${row+2}`);
+      wsDash.mergeCells(`${startCol}${row+3}:${endCol}${row+3}`);
 
-    const createMetricCard = (row: number, label: string, value: string | number) => {
-      wsDash.getCell(`A${row}`).value = label;
-      wsDash.getCell(`B${row}`).value = value;
-      wsDash.getCell(`A${row}`).font = { bold: true };
-      wsDash.getCell(`A${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
-      wsDash.getCell(`B${row}`).alignment = { horizontal: 'center' };
-      wsDash.getCell(`A${row}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-      wsDash.getCell(`B${row}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      const titleC = wsDash.getCell(`${startCol}${row}`);
+      const valC = wsDash.getCell(`${startCol}${row+1}`);
+      const subC = wsDash.getCell(`${startCol}${row+3}`);
+
+      titleC.value = title.toUpperCase();
+      titleC.font = { size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF005099' } };
+      titleC.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      valC.value = value;
+      valC.font = { size: 24, bold: true, color: { argb: 'FF002050' } };
+      valC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F8' } };
+      valC.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      subC.value = subtitle;
+      subC.font = { size: 9, bold: true, color: { argb: 'FF666666' } };
+      subC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F8' } };
+      subC.alignment = { vertical: 'middle', horizontal: 'center' };
     };
 
-    createMetricCard(5, 'Total de Projetos', totalProjects);
-    createMetricCard(6, 'Aprovados pelo Professor', `${approvedProfessor} (${((approvedProfessor/totalProjects)*100).toFixed(1)}%)`);
-    createMetricCard(7, 'Aprovados pela Biblioteca', `${approvedBiblioteca} (${((approvedBiblioteca/totalProjects)*100).toFixed(1)}%)`);
+    createKPICard('B', 'C', 5, 'Total de Projetos', totalProjects, 'Todos os cursos e turmas');
+    createKPICard('E', 'F', 5, 'Aprovados (Professor)', approvedProfessor, `${((approvedProfessor/totalProjects)*100).toFixed(1)}% do total`);
+    createKPICard('H', 'I', 5, 'Aprovados (Biblioteca)', approvedBiblioteca, `${((approvedBiblioteca/totalProjects)*100).toFixed(1)}% do total`);
 
-    wsDash.getColumn('A').width = 30;
-    wsDash.getColumn('B').width = 20;
-    wsDash.getColumn('C').width = 5;
-    wsDash.getColumn('D').width = 30;
-    wsDash.getColumn('E').width = 20;
-
-    // Course Data
+    // Data Processing
+    const monthCounts: Record<string, number> = {};
     const courseCounts: Record<string, number> = {};
-    const turmaCounts: Record<string, number> = {};
+    const turmaData: Record<string, { total: number, aprovados: number, pendentes: number }> = {};
+
     allProjects.forEach(p => {
+      // Month
+      const date = p.createdAt ? new Date(p.createdAt) : new Date();
+      const month = date.toLocaleString('pt-BR', { month: 'short', year: 'numeric' });
+      monthCounts[month] = (monthCounts[month] || 0) + 1;
+
+      // Course
       courseCounts[p.curso] = (courseCounts[p.curso] || 0) + 1;
-      turmaCounts[p.turma] = (turmaCounts[p.turma] || 0) + 1;
+
+      // Turma
+      if (!turmaData[p.turma]) turmaData[p.turma] = { total: 0, aprovados: 0, pendentes: 0 };
+      turmaData[p.turma].total++;
+      if (p.approvalProfessor) turmaData[p.turma].aprovados++;
+      else turmaData[p.turma].pendentes++;
     });
 
-    wsDash.getCell('D4').value = 'PROJETOS POR CURSO';
-    wsDash.getCell('D4').font = { size: 12, bold: true };
-    wsDash.getCell('D5').value = 'Curso';
-    wsDash.getCell('E5').value = 'Quantidade';
-    ['D5', 'E5'].forEach(cell => {
-      wsDash.getCell(cell).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      wsDash.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0055A4' } };
-      wsDash.getCell(cell).alignment = { horizontal: 'center' };
+    // Table 1: Projetos por Mês
+    wsDash.mergeCells(`B10:C10`);
+    const t1Cell = wsDash.getCell(`B10`);
+    t1Cell.value = 'PROJETOS POR MÊS';
+    t1Cell.font = { size: 12, bold: true, color: { argb: 'FF002050' } };
+    
+    wsDash.getCell(`B11`).value = 'Mês/Ano';
+    wsDash.getCell(`C11`).value = 'Quantidade';
+    ['B11', 'C11'].forEach(c => {
+      wsDash.getCell(c).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      wsDash.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF002050' } };
+      wsDash.getCell(c).alignment = { horizontal: 'center' };
     });
 
-    let currentRow = 6;
-    Object.entries(courseCounts).forEach(([course, count]) => {
-      wsDash.getCell(`D${currentRow}`).value = course;
-      wsDash.getCell(`E${currentRow}`).value = count;
-      wsDash.getCell(`E${currentRow}`).alignment = { horizontal: 'center' };
-      wsDash.getCell(`D${currentRow}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-      wsDash.getCell(`E${currentRow}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-      currentRow++;
+    let r1 = 12;
+    Object.entries(monthCounts).forEach(([m, count]) => {
+      wsDash.getCell(`B${r1}`).value = m;
+      wsDash.getCell(`B${r1}`).border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      wsDash.getCell(`C${r1}`).value = count;
+      wsDash.getCell(`C${r1}`).alignment = { horizontal: 'center' };
+      wsDash.getCell(`C${r1}`).border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      r1++;
     });
 
-    currentRow += 2;
-    wsDash.getCell(`D${currentRow}`).value = 'PROJETOS POR TURMA';
-    wsDash.getCell(`D${currentRow}`).font = { size: 12, bold: true };
-    currentRow++;
-    wsDash.getCell(`D${currentRow}`).value = 'Turma';
-    wsDash.getCell(`E${currentRow}`).value = 'Quantidade';
-    [`D${currentRow}`, `E${currentRow}`].forEach(cell => {
-      wsDash.getCell(cell).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      wsDash.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0055A4' } };
-      wsDash.getCell(cell).alignment = { horizontal: 'center' };
+    // Table 2: Projetos por Curso
+    wsDash.mergeCells(`E10:I10`);
+    const t2Cell = wsDash.getCell(`E10`);
+    t2Cell.value = 'PROJETOS POR CURSO';
+    t2Cell.font = { size: 12, bold: true, color: { argb: 'FF002050' } };
+    
+    wsDash.mergeCells(`E11:H11`);
+    wsDash.getCell(`E11`).value = 'Curso';
+    wsDash.getCell(`I11`).value = 'Quantidade';
+    ['E11', 'I11'].forEach(c => {
+      wsDash.getCell(c).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      wsDash.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF002050' } };
+      wsDash.getCell(c).alignment = { horizontal: 'center' };
     });
-    currentRow++;
-    Object.entries(turmaCounts).forEach(([turma, count]) => {
-      wsDash.getCell(`D${currentRow}`).value = turma;
-      wsDash.getCell(`E${currentRow}`).value = count;
-      wsDash.getCell(`E${currentRow}`).alignment = { horizontal: 'center' };
-      wsDash.getCell(`D${currentRow}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-      wsDash.getCell(`E${currentRow}`).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-      currentRow++;
+
+    let r2 = 12;
+    Object.entries(courseCounts).forEach(([c, count]) => {
+      wsDash.mergeCells(`E${r2}:H${r2}`);
+      wsDash.getCell(`E${r2}`).value = c;
+      wsDash.getCell(`E${r2}`).border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      wsDash.getCell(`I${r2}`).value = count;
+      wsDash.getCell(`I${r2}`).alignment = { horizontal: 'center' };
+      wsDash.getCell(`I${r2}`).border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      r2++;
+    });
+
+    // Table 3: Detalhamento por Turma
+    const startRowT3 = Math.max(r1, r2) + 2;
+    wsDash.mergeCells(`B${startRowT3}:I${startRowT3}`);
+    const t3Cell = wsDash.getCell(`B${startRowT3}`);
+    t3Cell.value = 'DETALHAMENTO POR TURMA';
+    t3Cell.font = { size: 12, bold: true, color: { argb: 'FF002050' } };
+    
+    const t3Headers = ['Turma', 'Total Projetos', 'Aprovados', 'Pendentes'];
+    const headerRow = startRowT3 + 1;
+    
+    wsDash.mergeCells(`B${headerRow}:E${headerRow}`);
+    wsDash.getCell(`B${headerRow}`).value = t3Headers[0];
+    
+    wsDash.getCell(`F${headerRow}`).value = t3Headers[1];
+    wsDash.mergeCells(`G${headerRow}:H${headerRow}`);
+    wsDash.getCell(`G${headerRow}`).value = t3Headers[2];
+    wsDash.getCell(`I${headerRow}`).value = t3Headers[3];
+
+    ['B', 'F', 'G', 'I'].forEach(col => {
+      const hCell = wsDash.getCell(`${col}${headerRow}`);
+      hCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF002050' } };
+      hCell.alignment = { horizontal: 'center' };
+    });
+
+    let r3 = headerRow + 1;
+    Object.entries(turmaData).forEach(([t, d]) => {
+      wsDash.mergeCells(`B${r3}:E${r3}`);
+      const c1 = wsDash.getCell(`B${r3}`);
+      c1.value = t;
+      c1.border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      
+      const c2 = wsDash.getCell(`F${r3}`);
+      c2.value = d.total;
+      c2.alignment = { horizontal: 'center' };
+      c2.border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      
+      wsDash.mergeCells(`G${r3}:H${r3}`);
+      const c3 = wsDash.getCell(`G${r3}`);
+      c3.value = d.aprovados;
+      c3.alignment = { horizontal: 'center' };
+      c3.border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      
+      const c4 = wsDash.getCell(`I${r3}`);
+      c4.value = d.pendentes;
+      c4.alignment = { horizontal: 'center' };
+      c4.border = { bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      
+      r3++;
     });
 
     // --- TAB 2: LISTA DE PROJETOS ---
@@ -505,34 +595,93 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Charts Section */}
+        {/* Charts Section - Power BI Style */}
         {projects.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6">Visão Geral</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-dark-card p-6 rounded-2xl border border-white/5">
-                <h3 className="text-lg font-bold mb-4 text-gray-400">Projetos por Curso</h3>
+          <section className="mb-12 bg-[#f4f6f8] p-6 rounded-3xl text-gray-800">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-black text-[#002050]">Análise de Projetos</h2>
+              <div className="flex gap-4">
+                <select className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#005099]">
+                  <option>Todos os Anos</option>
+                  <option>2026</option>
+                  <option>2025</option>
+                </select>
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="bg-gradient-to-r from-[#002050] to-[#005099] p-6 rounded-2xl text-white shadow-lg flex items-center gap-4">
+                <div className="p-3 bg-white/10 rounded-xl">
+                  <FolderKanban className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80 font-semibold uppercase tracking-wider">Total de Projetos</p>
+                  <p className="text-3xl font-black">{projects.length}</p>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-[#002050] to-[#005099] p-6 rounded-2xl text-white shadow-lg flex items-center gap-4">
+                <div className="p-3 bg-white/10 rounded-xl">
+                  <Sparkles className="w-8 h-8 text-[#00FF9D]" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80 font-semibold uppercase tracking-wider">Aprovados (Prof)</p>
+                  <p className="text-3xl font-black">{projects.filter(p => p.approvalProfessor).length}</p>
+                  <p className="text-xs text-[#00FF9D] mt-1 font-bold">
+                    {((projects.filter(p => p.approvalProfessor).length / projects.length) * 100).toFixed(1)}% do total
+                  </p>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-[#002050] to-[#005099] p-6 rounded-2xl text-white shadow-lg flex items-center gap-4">
+                <div className="p-3 bg-white/10 rounded-xl">
+                  <FileText className="w-8 h-8 text-[#B026FF]" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80 font-semibold uppercase tracking-wider">Aprovados (Bib)</p>
+                  <p className="text-3xl font-black">{projects.filter(p => p.approvalBiblioteca).length}</p>
+                  <p className="text-xs text-[#B026FF] mt-1 font-bold">
+                    {((projects.filter(p => p.approvalBiblioteca).length / projects.length) * 100).toFixed(1)}% do total
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              {/* Bar Chart - Projetos por Mês */}
+              <div className="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
+                <h3 className="text-lg font-bold mb-4 text-[#002050]">Projetos Criados por Mês</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={projectsByCourse}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="name" stroke="#888" />
-                      <YAxis stroke="#888" />
-                      <Tooltip content={<CustomBarTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
-                      <Bar dataKey="value" fill="#00FF9D" radius={[4, 4, 0, 0]} />
+                    <BarChart data={
+                      // Group projects by month
+                      Object.values(projects.reduce((acc, p) => {
+                        const date = p.createdAt ? new Date(p.createdAt) : new Date();
+                        const month = date.toLocaleString('pt-BR', { month: 'short' });
+                        if (!acc[month]) acc[month] = { name: month, value: 0 };
+                        acc[month].value++;
+                        return acc;
+                      }, {} as Record<string, {name: string, value: number}>))
+                    }>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{fill: '#f4f6f8'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                      <Bar dataKey="value" fill="#002050" radius={[4, 4, 0, 0]} barSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div className="bg-dark-card p-6 rounded-2xl border border-white/5">
-                <h3 className="text-lg font-bold mb-4 text-gray-400">Status de Aprovação (Professor)</h3>
-                <div className="h-64">
+
+              {/* Donut Chart - Status */}
+              <div className="bg-white p-6 rounded-2xl shadow-md">
+                <h3 className="text-lg font-bold mb-4 text-[#002050]">Status de Aprovação</h3>
+                <div className="h-64 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={[
-                          { name: 'Aprovados', value: projects.filter(p => p.approvalProfessor).length, id: 'approved' },
-                          { name: 'Pendentes', value: projects.filter(p => !p.approvalProfessor).length, id: 'pending' }
+                          { name: 'Aprovados', value: projects.filter(p => p.approvalProfessor).length },
+                          { name: 'Pendentes', value: projects.filter(p => !p.approvalProfessor).length }
                         ]}
                         cx="50%"
                         cy="50%"
@@ -540,35 +689,78 @@ export default function Dashboard() {
                         outerRadius={80}
                         paddingAngle={5}
                         dataKey="value"
-                        onClick={(data) => {
-                          setStatusFilter(statusFilter === data.id ? 'all' : data.id);
-                          // Scroll to projects list
-                          document.getElementById('projects-list')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="cursor-pointer"
                       >
-                        <Cell fill="#00FF9D" />
-                        <Cell fill="#B026FF" />
+                        <Cell fill="#f59e0b" /> {/* Orange for Aprovados to match image style */}
+                        <Cell fill="#002050" /> {/* Dark blue for Pendentes */}
                       </Pie>
-                      <Tooltip content={<CustomPieTooltip />} />
+                      <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="flex justify-center gap-4 mt-4">
-                    <button 
-                      onClick={() => setStatusFilter(statusFilter === 'approved' ? 'all' : 'approved')}
-                      className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${statusFilter === 'approved' ? 'bg-neon-green/20' : 'hover:bg-white/5'}`}
-                    >
-                      <div className="w-3 h-3 rounded-full bg-neon-green"></div>
-                      <span className="text-sm text-gray-400">Aprovados</span>
-                    </button>
-                    <button 
-                      onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
-                      className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${statusFilter === 'pending' ? 'bg-neon-purple/20' : 'hover:bg-white/5'}`}
-                    >
-                      <div className="w-3 h-3 rounded-full bg-neon-purple"></div>
-                      <span className="text-sm text-gray-400">Pendentes</span>
-                    </button>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-black text-[#002050]">{projects.length}</span>
+                    <span className="text-xs text-gray-500">Total</span>
                   </div>
+                </div>
+                <div className="flex justify-center gap-4 mt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#f59e0b]"></div>
+                    <span className="text-sm text-gray-600">Aprovados</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#002050]"></div>
+                    <span className="text-sm text-gray-600">Pendentes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Horizontal Bar Chart - Projetos por Curso */}
+              <div className="bg-white p-6 rounded-2xl shadow-md">
+                <h3 className="text-lg font-bold mb-4 text-[#002050]">Projetos por Curso</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectsByCourse} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
+                      <XAxis type="number" axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{fontSize: 12}} />
+                      <Tooltip cursor={{fill: '#f4f6f8'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                      <Bar dataKey="value" fill="#002050" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Table - Projetos por Turma */}
+              <div className="bg-white p-6 rounded-2xl shadow-md overflow-hidden flex flex-col">
+                <h3 className="text-lg font-bold mb-4 text-[#002050]">Detalhamento por Turma</h3>
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="py-3 px-4 font-bold text-gray-600 text-sm">Turma</th>
+                        <th className="py-3 px-4 font-bold text-gray-600 text-sm text-right">Total Projetos</th>
+                        <th className="py-3 px-4 font-bold text-gray-600 text-sm text-right">Aprovados</th>
+                        <th className="py-3 px-4 font-bold text-gray-600 text-sm text-right">Pendentes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.values(projects.reduce((acc, p) => {
+                        if (!acc[p.turma]) acc[p.turma] = { turma: p.turma, total: 0, aprovados: 0, pendentes: 0 };
+                        acc[p.turma].total++;
+                        if (p.approvalProfessor) acc[p.turma].aprovados++;
+                        else acc[p.turma].pendentes++;
+                        return acc;
+                      }, {} as Record<string, {turma: string, total: number, aprovados: number, pendentes: number}>)).map((row, i) => (
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-800">{row.turma}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600 text-right">{row.total}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600 text-right">{row.aprovados}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600 text-right">{row.pendentes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
