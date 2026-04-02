@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: projects
+    // Document ID: {projectId}
+    // Fields:
+    //   - name: string (required, min 1, max 100)
+    //   - description: string (required)
+    //   - userId: string (required, must match auth.uid)
+    //   - createdAt: timestamp (required)
+    //   - status: string (required, enum: ['active', 'completed', 'archived'])
+    //   - turma: string (required)
+    //   - curso: string (required)
+    //   - startDate: string (required)
+    //   - endDate: string (required)
+    //   - approvalProfessor: bool
+    //   - approvalBiblioteca: bool
+    //   - bmCanvas: string
+    //   - relatorio: string
+    //   - banner: string
+    //   - prototipo: string
+    //   - pitch: string
+    //
+    // Collection: tasks
+    // Document ID: {taskId}
+    // Fields:
+    //   - projectId: string (required)
+    //   - title: string (required, min 1, max 200)
+    //   - completed: bool (required)
+    //   - status: string (required, enum: ['todo', 'doing', 'done'])
+    //   - userId: string (required, must match auth.uid)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "mmvsilva@firjan.com.br" || request.auth.token.email == "vasouza@firjan.com.br" || request.auth.token.email == "marcio.s@docente.firjan.senai.br" || request.auth.token.email == "marcio.v.silva@docente.firjan.senai.br");
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['name', 'description', 'userId', 'createdAt', 'status', 'turma', 'curso', 'startDate', 'endDate']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() <= 10000 &&
+             data.userId == request.auth.uid &&
+             data.status in ['active', 'completed', 'archived'] &&
+             data.turma is string && data.curso is string &&
+             data.startDate is string && data.endDate is string;
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['projectId', 'title', 'completed', 'userId', 'createdAt', 'status']) &&
+             data.projectId is string &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.completed is bool &&
+             data.status in ['todo', 'doing', 'done'] &&
+             data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidProject(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && 
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidTask(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && 
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.createdAt == resource.data.createdAt &&
+                      request.resource.data.projectId == resource.data.projectId;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+  }
+}

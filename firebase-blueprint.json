@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Educational project entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed", "archived"] },
+        "turma": { "type": "string" },
+        "curso": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "approvalProfessor": { "type": "boolean" },
+        "approvalBiblioteca": { "type": "boolean" },
+        "bmCanvas": { "type": "string" },
+        "bmCanvasFile": { "type": "string" },
+        "relatorio": { "type": "string" },
+        "relatorioFile": { "type": "string" },
+        "banner": { "type": "string" },
+        "prototipo": { "type": "string" },
+        "pitch": { "type": "string" },
+        "professorPhoto": { "type": "string" }
+      },
+      "required": ["name", "userId", "createdAt", "turma", "curso", "startDate", "endDate"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Project task entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "title": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["todo", "doing", "done"] },
+        "order": { "type": "number" }
+      },
+      "required": ["projectId", "title", "completed", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile entity",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "matricula": { "type": "string" },
+        "telefone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["uid", "name", "matricula", "email"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of educational projects"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of project tasks"
+    },
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    }
+  }
+}

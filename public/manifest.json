@@ -1,0 +1,21 @@
+{
+  "name": "HUB DASHBOARD",
+  "short_name": "HUB DASH",
+  "description": "Dashboard de Gestão de Projetos Educacionais",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#BC13FE",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/hubdash/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/hubdash/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
