@@ -650,8 +650,8 @@ export default function Dashboard() {
               {/* Bar Chart - Projetos por Mês */}
               <div className="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
                 <h3 className="text-lg font-bold mb-4 text-[#002050]">Projetos Criados por Mês</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full" style={{ height: 250 }}>
+                  <ResponsiveContainer width="99%" height="100%">
                     <BarChart data={
                       // Group projects by month
                       Object.values(projects.reduce((acc, p) => {
@@ -675,8 +675,8 @@ export default function Dashboard() {
               {/* Donut Chart - Status */}
               <div className="bg-white p-6 rounded-2xl shadow-md">
                 <h3 className="text-lg font-bold mb-4 text-[#002050]">Status de Aprovação</h3>
-                <div className="h-64 relative">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="relative w-full" style={{ height: 250 }}>
+                  <ResponsiveContainer width="99%" height="100%">
                     <PieChart>
                       <Pie
                         data={[
@@ -718,8 +718,8 @@ export default function Dashboard() {
               {/* Horizontal Bar Chart - Projetos por Curso */}
               <div className="bg-white p-6 rounded-2xl shadow-md">
                 <h3 className="text-lg font-bold mb-4 text-[#002050]">Projetos por Curso</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full" style={{ height: 250 }}>
+                  <ResponsiveContainer width="99%" height="100%">
                     <BarChart data={projectsByCourse} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
                       <XAxis type="number" axisLine={false} tickLine={false} />
